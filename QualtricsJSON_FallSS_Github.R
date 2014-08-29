@@ -29,6 +29,8 @@
 #'URL/HTML Query:  Includes Request, User, Token, Format, Version and 
 #'SurveyID parameters
 
+#'.Rprofile contains appropriate login information and direction to Survey
+
 url <- paste("https://survey.qualtrics.com/WRAPI/ControlPanel/api.php?Request=",
              request,"&User=",user,"&Token=",token,"&Format=",format,"&Version=",
              version,"&SurveyID=",svid, sep="")
