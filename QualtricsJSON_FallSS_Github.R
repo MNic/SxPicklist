@@ -44,8 +44,8 @@ df <- ldply(jsonstrip)              #convert JSON export to dataframe
 #'RCurl is the suggested replacement, but behaves differently.  readLines()
 #'into unlist -> ldply produces a dataframe of columns in which each column
 #'contains one piece of information (tidy?).  RCurl produces a dataframe, but
-#'Many of the columns are columns of lists (multiple lists per column) and are
-#'difficult to work with.
+#'Many of the columns are columns of lists (multiple lists per column) and 
+#'will take some time to functionalize.  
 
 #'Generate supplementary data not provided by test data export.
 #'This is for testing purposes only.  Live data will have these fiels
@@ -57,8 +57,10 @@ df <- ldply(jsonstrip)              #convert JSON export to dataframe
 #Supply error text for failure output file.
   errortxt <- "Pick List is EMPTY"
 
-#Create function for study 'sick' prediction based on self-reported symptoms from file
-sick_id_qual <- function(doi1, closeday = 0, farday = -6, winclose = 0, winfar = -14, Sxlim = 4){
+#Create function for study 'sick' prediction based on self-reported symptoms 
+#from file
+sick_id_qual <- function(doi1, closeday = 0, farday = -6, winclose = 0, 
+                         winfar = -14, Sxlim = 4){
 
     # Define variables different than the defaults for testing
     #       closeday = 0 
@@ -69,7 +71,8 @@ sick_id_qual <- function(doi1, closeday = 0, farday = -6, winclose = 0, winfar =
     #          doi1 = "2014-08-26"    
   
     # Subset and keep fields of interest from the export
-      df <-  df[,c("ExternalDataReference", "EmailAddress", "StartDate", "Symptoms.Sum")]
+      df <-  df[,c("ExternalDataReference", "EmailAddress", "StartDate", 
+                   "Symptoms.Sum")]
     
     #'Create 'StartDate' variable as date, original stored as character
       df$dfdate <- as.Date(df$StartDate)
@@ -85,8 +88,8 @@ sick_id_qual <- function(doi1, closeday = 0, farday = -6, winclose = 0, winfar =
     #                    unique(df$dfdate[df$dfdate == Sys.Date()])+farday, "-1 day")
     
     ##Picks defined date
-    #' <<- is key, otherwise the environment for doi gets restricted to the current function and
-    #' ddply can't find it.
+    #' <<- is key, otherwise the environment for doi gets restricted to the 
+    #' current function and ddply can't find it.
       doi <<- as.Date(doi1)
       dlimit <- seq.Date(unique(df$dfdate[df$dfdate %in% doi])+closeday,
                        unique(df$dfdate[df$dfdate %in% doi])+farday, "-1 day")
@@ -94,19 +97,20 @@ sick_id_qual <- function(doi1, closeday = 0, farday = -6, winclose = 0, winfar =
     #'Subset data to match only dates in dlimit
       dlimitdf <- df[df$dfdate %in% dlimit,]
     
-    #'Find max symptoms in the previous dlimit days.  Many warnings will be produced here.  
-    #'It's due to many cases of missing data causing max() to divide by 0.  Can squelch or
-    #'fix at a later date; result is not affected.
+    #'Find max symptoms in the previous dlimit days.  Many warnings will be 
+    #'produced here.  It's due to many cases of missing data causing max() to 
+    #'divide by 0.  Can squelch or fix at a later date; result is not affected.
       premax <- ddply(dlimitdf, .(ExternalDataReference), summarise, 
                     maxpresx = max(Symptoms.Sum, na.rm=TRUE))
     
     #'Find max symptoms for current date
       currentdatesx <- ddply(df, .(ExternalDataReference), summarise, 
                            maxdate = doi, 
-                           maxsxf = max(Symptoms.Sum[dfdate %in% doi], na.rm=TRUE))
+                           maxsxf = max(Symptoms.Sum[dfdate %in% doi], 
+                                        na.rm=TRUE))
       
-    #'Merge maximum symptom result from previous days with symptoms on the day of interest
-    #'Replace the values divided by zero (-Inf) with 0
+    #'Merge maximum symptom result from previous days with symptoms on the day 
+    #'of interest. Replace the values divided by zero (-Inf) with 0
       final <- merge(premax, currentdatesx, by="ExternalDataReference") #merge datasets by subjectID
       final$maxpresx[final$maxpresx == -Inf] <- 0  #replace -Inf with 0
     
@@ -123,16 +127,16 @@ sick_id_qual <- function(doi1, closeday = 0, farday = -6, winclose = 0, winfar =
       window <- seq.Date(doi+winclose, doi+winfar, "-1 day")
       windf <- df[df$dfdate %in% window,]
     
-    #'merge dataframe of subjects with sxdif > Sxlim and original symptom date information defined by 
-    #'the window.  Creates a pull list with previous days and symptoms included
+    #'merge dataframe of subjects with sxdif > Sxlim and original symptom date information defined 
+    #'by the window.  Creates a pull list with previous days and symptoms included
       pickwind <- merge(pick, windf, by="ExternalDataReference")
       names(pickwind)
     
   if (length(pickwind[,1]>0)) {
     
       #'cast pick list into 'tidy' format to generate report
-        ctest <- dcast(pickwind, ExternalDataReference + maxdate + maxpresx + maxsxf + sxdif ~ dfdate,
-               value.var="Symptoms.Sum")
+        ctest <- dcast(pickwind, ExternalDataReference + maxdate + maxpresx + maxsxf + sxdif 
+                       ~ dfdate, value.var="Symptoms.Sum")
         
       #subset the date columns from ctest for ease of reading/formatting
         check <- ctest[,names(ctest) %in% as.character(window)]
@@ -149,10 +153,8 @@ sick_id_qual <- function(doi1, closeday = 0, farday = -6, winclose = 0, winfar =
                                    "sxdif"), new = c("study_id", "Day0_date", "Max_PreSx", 
                                                      "Day0_Sx", "Sx_Delta"))
       #'Write result to file
-        write.csv(file=paste("./SSPicklists/","SSpicklist","_",format(Sys.time(), "%d%b%Y_%H%M%S"),".csv", sep=""), 
-              ordered_report)
+        write.csv(file=paste("./SSPicklists/","SSpicklist","_",format(Sys.time(), "%d%b%Y_%H%M%S"),
+                             ".csv", sep=""), ordered_report)
       
   } else stop("Pick List is Empty", write.csv(errortxt, file="test.csv"))  
 }
-
-
