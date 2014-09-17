@@ -35,10 +35,14 @@ url <- paste("https://survey.qualtrics.com/WRAPI/ControlPanel/api.php?Request=",
              request,"&User=",user,"&Token=",token,"&Format=",format,"&Version=",
              version,"&SurveyID=",svid, sep="")
 
-txt <- fromJSON(readLines(url))     #readLines() not needed on Mac. see below
-jsonstrip <- lapply(txt, unlist)    #Unlist/Strip the JSON file
-df <- ldply(jsonstrip)              #convert JSON export to dataframe
-
+txt <- fromJSON(url)    #Strip data from API into dataframe
+Symptoms.Sum <- as.data.frame(cbind(txt$Symptoms$Sum))    #Split out Symptoms list of lists
+Score.Sum <- as.data.frame(cbind(txt$Score$Sum))          #Split out Score list of lists
+df <- cbind(txt, Symptoms.Sum, Score.Sum)                 #Combine Sums with original dataframe
+names(df)[27:28] <- c("Symptoms.Sum", "Score.Sum")        #Rename Sum columns
+df <- subset(df, select=-c(Symptoms, Score))              #Remove columns containing multiple columns
+jsonsplit <- lapply(df, unlist)                           #Unlist the dataframe of lists
+df <- as.data.frame(jsonsplit)                            #Coerce list of lists into dataframe
 #:::::::::::::::::::::::  IMPORTANT!!!  :::::::::::::::::::::::::::
 #'Script isn't functional on Mac/64bit.  readLines() requires Windows
 #'RCurl is the suggested replacement, but behaves differently.  readLines()
@@ -56,10 +60,10 @@ df <- ldply(jsonstrip)              #convert JSON export to dataframe
 
 #Supply error text for failure output file.
   errortxt <- "Pick List is EMPTY"
-
+doi <- Sys.Date()
 #Create function for study 'sick' prediction based on self-reported symptoms 
 #from file
-sick_id_qual <- function(doi1, closeday = 0, farday = -6, winclose = 0, 
+sick_id_qual <- function(doi1, closeday = -1, farday = -6, winclose = 0, 
                          winfar = -14, Sxlim = 4){
 
     # Define variables different than the defaults for testing
@@ -73,7 +77,7 @@ sick_id_qual <- function(doi1, closeday = 0, farday = -6, winclose = 0,
     # Subset and keep fields of interest from the export
       df <-  df[,c("ExternalDataReference", "EmailAddress", "StartDate", 
                    "Symptoms.Sum")]
-    
+      
     #'Create 'StartDate' variable as date, original stored as character
       df$dfdate <- as.Date(df$StartDate)
       
@@ -84,13 +88,13 @@ sick_id_qual <- function(doi1, closeday = 0, farday = -6, winclose = 0,
     # dlimit <- seq.Date(max(df$dfdate)+closeday,max(df$dfdate)+farday, "-1 day")
   
     ##Picks current date
-    # dlimit <- seq.Date(unique(df$dfdate[df$dfdate == Sys.Date()])+closeday, 
-    #                    unique(df$dfdate[df$dfdate == Sys.Date()])+farday, "-1 day")
+    dlimit <- seq.Date(unique(df$dfdate[df$dfdate == Sys.Date()])+closeday, 
+                      unique(df$dfdate[df$dfdate == Sys.Date()])+farday, "-1 day")
     
     ##Picks defined date
     #' <<- is key, otherwise the environment for doi gets restricted to the 
     #' current function and ddply can't find it.
-      doi <<- as.Date(doi1)
+      #doi <<- as.Date(doi1)
       dlimit <- seq.Date(unique(df$dfdate[df$dfdate %in% doi])+closeday,
                        unique(df$dfdate[df$dfdate %in% doi])+farday, "-1 day")
     
@@ -158,3 +162,5 @@ sick_id_qual <- function(doi1, closeday = 0, farday = -6, winclose = 0,
       
   } else stop("Pick List is Empty", write.csv(errortxt, file="test.csv"))  
 }
+
+sick_id_qual()
